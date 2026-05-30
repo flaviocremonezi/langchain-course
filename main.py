@@ -1,42 +1,35 @@
+from typing import List
+from pydantic import BaseModel, Field
+
 from dotenv import load_dotenv
-import os
-from pathlib import Path
-from langchain_core.prompts import PromptTemplate
+
+load_dotenv()
+from langchain.agents import create_agent
+from langchain.tools import tool
+from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
+from tavily import TavilyClient
+from langchain_community.tools.tavily_search import TavilySearchResults
 
-# Garante que o Python vai buscar o .env na mesma pasta deste arquivo main.py
-script_dir = Path(__file__).resolve().parent
-env_path = script_dir / '.env'
+class Source(BaseModel):
+    """Schema for a source used by the agent"""
 
-# Carrega e printa se funcionou (True ou False)
-path_encontrado = load_dotenv(dotenv_path=env_path)
+    url:str = Field(description="The URL of the source")
+
+class AgentResponse(BaseModel):
+    """Schema for agent response with and answer and sources"""
+
+    answer:str = Field(description="The agent's answer to the query")
+    sources: List[Source] = Field(default_factory=list, description="List of sources used to generate the answer")
+
+llm=ChatOpenAI(model="gpt-5")
+tools=[TavilySearchResults()]
+agent=create_agent(model=llm, tools=tools, response_format=AgentResponse)
+
 def main():
-    information = """
-    Elon Reeve Musk FRS (Pretória, 28 de junho de 1971) é um empresário,[4] empreendedor, inventor e filantropo sul-africano, naturalizado canadense e estadunidense. É o fundador, diretor executivo e diretor técnico da SpaceX; CEO da Tesla, Inc.; um dos cofundadores da OpenAI, fundador e CEO da Neuralink; cofundador, presidente da SolarCity e proprietário do X (antigo Twitter) e ex-comissário do Departamento de Eficiência Governamental dos Estados Unidos durante o segundo governo Trump em 2025. Em 2023, ele era a pessoa mais rica do mundo, com um patrimônio líquido estimado em 225 bilhões de dólares, de acordo com o Bloomberg Billionaires Index. Já a revista Forbes estimou sua fortuna em 221,3 bilhões de dólares, principalmente de suas participações acionárias nas empresas Tesla e na SpaceX.[5][3] Em outubro de 2025, a Forbes estimou que seu patrimônio líquido seja de US$ 500 bilhões, tornando-o a primeira pessoa a alcançar esse patamar.[6]
-
-Musk demonstrou publicamente preocupações com a extinção humana[7] e também propôs soluções, das quais algumas são o objetivo principal de suas empresas e já estão sendo feitas na prática. Entre elas, a redução do aquecimento global, através do uso de energias renováveis, um projeto multiplanetário, mais especificamente a colonização de Marte,[8] e o desenvolvimento seguro da inteligência artificial.
-
-Em janeiro de 2011, uma de suas empresas, a SpaceX, tornou-se a primeira empresa no mundo a vender um voo comercial à Lua. A missão, marcada para 2013, foi contratada pela empresa Astrobotic Technology, tendo como objetivo colocar um pequeno jipe na superfície lunar, o que não aconteceu. Em 2012, encerrou o projeto do Tesla Roadster, o primeiro modelo da sua autoria, um carro totalmente elétrico que custava cerca de 92 mil dólares. A Tesla já lançou quatro modelos: S, Y, X e o Modelo 3, este último com a responsabilidade de trazer os carros elétricos para as massas, partindo de um custo inicial de 35 mil dólares.[9] Em 25 de abril de 2022, ele também concordou em comprar o Twitter por 44 bilhões de dólares.[10]
-
-Musk expressou opiniões que o tornaram uma figura polarizadora e controversa.[11] Ele foi criticado por fazer declarações não científicas, enganosas, ou endossar teorias da conspiração, incluindo sobre a pandemia de COVID-19 e a eleição presidencial nos Estados Unidos em 2020, além de endossar postagens antissemitas,[12] sendo que por este último ele se desculpou.[13] Em 2024, Musk foi o maior doador na eleição presidencial daquele ano[14] e desde então tem se destacado como um apoiador de personalidades, causas e partidos políticos de extrema-direita no mundo todo.[15][16]
-"""
-
-    summary_template ="""given the information {information} about a person I want you to create:
-    1. a short summary
-    2. two interesting facts about them"""
-
-
-    summary_prompt_template = PromptTemplate(
-        input_variables=["information"], template=summary_template
-)
-    llm = ChatOpenAI(temperature=0, model="gpt-5")
-    #llm = ChatOllama(temperature=0, model="gemma4:31b-cloud")
-    chain = summary_prompt_template | llm
-    response = chain.invoke(input={"information": information})
-    print(response.content)
-
+    print("Hello")
+    result = agent.invoke({"messages":HumanMessage(content="search for 3 job posting for an ai engineer usig langchain in the bay area on linkedin and list their details")})
+    print(result)
 
 if __name__ == "__main__":
     main()
-
